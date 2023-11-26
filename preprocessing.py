@@ -23,10 +23,8 @@ def conversation_to_messages(conv: list[dict], id: str, model: str, openai_moder
     )
     messages = []
     for i in range(len(conv)):
-        print(i, str(i))
         message_turn = i//2 + 1
         is_toxic = openai_moderation[i]["flagged"]
-        # print("Is message toxic: ", is_toxic)
         new_message = {
             'message_id': id+"_"+str(i),
             'model': model,
@@ -41,7 +39,6 @@ def conversation_to_messages(conv: list[dict], id: str, model: str, openai_moder
         messages.append(new_message)
     df = pd.concat([df, pd.DataFrame(messages, columns=msg_csv_cols)])
     df.set_index(['message_id']).index.is_unique
-    # print(df[['message_id']].duplicated().any())
     return df
 
 
@@ -56,12 +53,9 @@ def create_message_csv(model: str) -> None:
     df_proc = pd.DataFrame(
         columns=msg_csv_cols,
     )
-    # print(df_orig.columns)
     for i in range(len(df_orig)):
         conv_list = eval(df_orig.conversation[i].replace("}", "},"))
         moderation = eval((df_orig.openai_moderation[i]).replace("}", "},").replace("},,", "},"))
-        print(df_orig.conversation_id[i], ":",df_orig.turn[i])
-        # print(type(moderation), "\n", moderation)
         
         df_proc = pd.concat([df_proc,
             conversation_to_messages(
@@ -72,7 +66,14 @@ def create_message_csv(model: str) -> None:
             )],
             ignore_index=True,
         )
-    print(df_proc.iloc[3])
     df_proc.to_csv(f"./data/proc/{model}.csv", index=False)
+    print(model,":",len(df_proc))
 
-create_message_csv(model="palm-2")
+
+llm_models = [
+    "palm-2",
+    "gpt-3.5-turbo",
+    "gpt4all-13b-snoozy",
+]
+for llm in llm_models:
+    create_message_csv(model=llm)
