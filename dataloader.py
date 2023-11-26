@@ -1,9 +1,8 @@
 '''
 This file filters the dataset based on certain constraints from HuggingFace Hub, and saves them as CSVs by LLM in `data` folder.
 Dataset : https://huggingface.co/datasets/lmsys/lmsys-chat-1m
-Current constraints : turn < 23, language=="English", (implicit: it should have toxicity)
+Current constraints : turn < 23, language=="English", (implicit: model should have toxic conversations)
 '''
-
 import os
 from dotenv import load_dotenv
 from datasets import load_dataset
@@ -14,7 +13,7 @@ def authenticate_huggingface():
     hf_hub_token = os.environ["HUGGINGFACE_HUB_TOKEN"]
     login(token=hf_hub_token)
 
-def filter_dataset(model, save_path="./data"):
+def filter_dataset(model: str, save_path: str):
     authenticate_huggingface()
 
     # Load the dataset
