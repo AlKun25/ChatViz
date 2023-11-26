@@ -1,0 +1,60 @@
+import pandas as pd
+import json
+
+conv_csv_cols = ['conversation_id','model','conversation','turn','language','openai_moderation','redacted']
+msg_csv_cols = ['message_id', 'model', 'turn', 'role', 'content', 'toxicity', 'openai_moderation']
+
+
+def conversation_to_messages(conv: list[dict], id: str, model: str, openai_moderation:str) -> pd.DataFrame:
+    df = pd.DataFrame(
+        columns=msg_csv_cols # embedding and openai_moderation can be added as columns
+    )
+    messages = []
+    for i in range(len(conv)):
+        print(i, str(i))
+        message_turn = i//2 + 1
+        is_toxic = openai_moderation[i]["flagged"]
+        # print("Is message toxic: ", is_toxic)
+        new_message = {
+            'message_id': id+"_"+str(i),
+            'model': model,
+            'turn': message_turn, 
+            'role': conv[i]['role'], 
+            'content': conv[i],
+            'toxicity': is_toxic,
+            'openai_moderation': openai_moderation[i],
+            # embeddings can be created for assistant messages or None in other cases
+            # conditional moderation value can be added for message of toxic conversations or None in other cases
+        }
+        messages.append(new_message)
+    df = pd.concat([df, pd.DataFrame(messages, columns=msg_csv_cols)])
+    df.set_index(['message_id']).index.is_unique
+    # print(df[['message_id']].duplicated().any())
+    return df
+
+
+def create_message_csv(model: str) -> None:
+    df_orig = pd.read_csv(f"data/orig/{model}.csv")
+    df_proc = pd.DataFrame(
+        columns=msg_csv_cols,
+    )
+    # print(df_orig.columns)
+    for i in range(len(df_orig)):
+        conv_list = eval(df_orig.conversation[i].replace("}", "},"))
+        moderation = eval((df_orig.openai_moderation[i]).replace("}", "},").replace("},,", "},"))
+        print(df_orig.conversation_id[i], ":",df_orig.turn[i])
+        # print(type(moderation), "\n", moderation)
+        
+        df_proc = pd.concat([df_proc,
+            conversation_to_messages(
+                conv=conv_list,
+                id=df_orig.conversation_id[i],
+                model=df_orig.model[i],
+                openai_moderation = moderation
+            )],
+            ignore_index=True,
+        )
+    print(df_proc.iloc[3])
+    df_proc.to_csv(f"./data/proc/{model}.csv", index=False)
+
+create_message_csv(model="palm-2")
