@@ -6,6 +6,18 @@ msg_csv_cols = ['message_id', 'model', 'turn', 'role', 'content', 'toxicity', 'o
 
 
 def conversation_to_messages(conv: list[dict], id: str, model: str, openai_moderation:str) -> pd.DataFrame:
+    """
+    Convert a conversation represented as a list of dictionaries of messages into a DataFrame of messages.
+
+    Args:
+        conv (list[dict]): List of dictionaries representing a conversation.
+        id (str): Unique identifier for the conversation.
+        model (str): LLM name associated with the conversation.
+        openai_moderation (str): Moderation/toxicity information for all messages in conversation.
+
+    Returns:
+        pd.DataFrame: DataFrame containing messages extracted from the conversation.
+    """    
     df = pd.DataFrame(
         columns=msg_csv_cols # embedding and openai_moderation can be added as columns
     )
@@ -34,6 +46,12 @@ def conversation_to_messages(conv: list[dict], id: str, model: str, openai_moder
 
 
 def create_message_csv(model: str) -> None:
+    """
+    Process original LLM-specific conversation data and create a CSV file containing individual extracted messages.
+
+    Args:
+        model (str): LLM name associated with the conversation data.
+    """
     df_orig = pd.read_csv(f"data/orig/{model}.csv")
     df_proc = pd.DataFrame(
         columns=msg_csv_cols,
