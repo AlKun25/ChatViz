@@ -1,40 +1,35 @@
 '''
 This file filters the dataset based on certain constraints from HuggingFace Hub, and saves them as CSVs by LLM in `data` folder.
 Dataset : https://huggingface.co/datasets/lmsys/lmsys-chat-1m
-Current constraints : turn < 23, language=="English", (implicit: it should have toxicity)
+Current constraints : turn < 23, language=="English", (implicit: model should have toxic conversations)
 '''
-
-
 import os
 from dotenv import load_dotenv
 from datasets import load_dataset
 from huggingface_hub import login
 
-load_dotenv()
+def authenticate_huggingface():
+    load_dotenv()
+    hf_hub_token = os.environ["HUGGINGFACE_HUB_TOKEN"]
+    login(token=hf_hub_token)
 
-hf_hub_token = os.environ["HUGGINGFACE_HUB_TOKEN"]
-login(token=hf_hub_token)
+def filter_dataset(model: str, save_path: str):
+    authenticate_huggingface()
 
-# If the dataset is gated/private, make sure you have run huggingface-cli login
-dataset = load_dataset("lmsys/lmsys-chat-1m", split="train")
-iter_dataset = dataset
-print(iter_dataset, type(iter_dataset))
+    # Load the dataset
+    dataset = load_dataset("lmsys/lmsys-chat-1m", split="train")
+    iter_dataset = dataset
 
-# select LLM models which contain toxic message for some constraints
-llm_models = [
-    "palm-2",
-    "gpt-3.5-turbo",
-    "gpt4all-13b-snoozy",
-]
-
-
-for llm in llm_models:
-    if llm != "vicuna-13b":
-        print("For model: ", llm)
+    # filter the dataset
+    if model != "vicuna-13b":
+        print(f"For model: {model}")
         filter_data = iter_dataset.filter(
             lambda x: x["turn"] < 23
             and x["language"] == "English"
-            and x["model"] == llm
+            and x["model"] == model
         )
         print(filter_data)
-        filter_data.to_csv(f"./data/{llm}.csv")
+        csv_path = os.path.join(save_path, f"{model}.csv")
+        filter_data.to_csv(csv_path)
+        print(f"Filtered data saved to: {csv_path}")
+
