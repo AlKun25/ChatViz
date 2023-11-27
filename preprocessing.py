@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 
+from create_embedding_tsne import getEmbeddingFromText, reduce_dimensions
+
 conv_csv_cols = [
     "conversation_id",
     "model",
@@ -18,6 +20,7 @@ msg_csv_cols = [
     "content",
     "toxicity",
     "openai_moderation",
+    "vector",
 ]
 
 
@@ -43,15 +46,16 @@ def conversation_to_messages(
     for i in range(len(conv)):
         message_turn = i // 2 + 1
         is_toxic = openai_moderation[i]["flagged"]
+        embedding = getEmbeddingFromText(conv[i]["content"])
         new_message = {
             "message_id": id + "_" + str(i),
             "model": model,
             "turn": message_turn,
             "role": conv[i]["role"],
-            "content": conv[i],
+            "content": conv[i]["content"],
             "toxicity": is_toxic,
             "openai_moderation": openai_moderation[i],
-            # embeddings can be created for assistant messages or None in other cases
+            "vector":  embedding if conv[i]["role"]=="assitant" else None,
             # conditional moderation value can be added for message of toxic conversations or None in other cases
         }
         messages.append(new_message)
@@ -66,7 +70,10 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
 
     Args:
         model (str): LLM name associated with the conversation data.
+        save_path (str): The directory where the processed dataset will be stored
+        load_path (str): The directory where the original/unprocessed dataset is stored.
     """
+    # Loads the original dataset containing conversations
     df_orig = pd.read_csv(os.path.join(load_path, f"{model}.csv"))
     df_proc = pd.DataFrame(
         columns=msg_csv_cols,
@@ -89,6 +96,13 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
             ],
             ignore_index=True,
         )
+
+    # Dimensionality reduction of the embeddings stored in 'vector' column
+    embeddings = df_proc['vector'].tolist()
+    reduced_embeddings = reduce_dimensions(embeddings=embeddings, n_components=3)
+    df_proc['vector'] = reduced_embeddings
+    
+    # Saving the CSV
     df_proc.to_csv(
         os.path.join(save_path, f"{model}.csv"),
         index=False,
