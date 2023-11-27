@@ -2,3 +2,6 @@ pandas
 python-dotenv
 datasets
 huggingface_hub
+torch
+transformers
+scikit-learn
