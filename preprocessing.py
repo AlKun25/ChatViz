@@ -1,0 +1,119 @@
+import os
+import pandas as pd
+
+from create_embedding_tsne import getEmbeddingFromText, reduce_dimensions
+
+conv_csv_cols = [
+    "conversation_id",
+    "model",
+    "conversation",
+    "turn",
+    "language",
+    "openai_moderation",
+    "redacted",
+]
+msg_csv_cols = [
+    "message_id",
+    "model",
+    "turn",
+    "role",
+    "content",
+    "toxicity",
+    "openai_moderation",
+    "vector",
+]
+
+
+def conversation_to_messages(
+    conv: list[dict], id: str, model: str, openai_moderation: str
+) -> pd.DataFrame:
+    """
+    Convert a conversation represented as a list of dictionaries of messages into a DataFrame of messages.
+
+    Args:
+        conv (list[dict]): List of dictionaries representing a conversation.
+        id (str): Unique identifier for the conversation.
+        model (str): LLM name associated with the conversation.
+        openai_moderation (str): Moderation/toxicity information for all messages in conversation.
+
+    Returns:
+        pd.DataFrame: DataFrame containing messages extracted from the conversation.
+    """
+    df = pd.DataFrame(
+        columns=msg_csv_cols  # embedding and openai_moderation can be added as columns
+    )
+    messages = []
+    for i in range(len(conv)):
+        message_turn = i // 2 + 1
+        is_toxic = openai_moderation[i]["flagged"]
+        embedding = getEmbeddingFromText(conv[i]["content"])
+        new_message = {
+            "message_id": id + "_" + str(i),
+            "model": model,
+            "turn": message_turn,
+            "role": conv[i]["role"],
+            "content": conv[i]["content"],
+            "toxicity": is_toxic,
+            "openai_moderation": openai_moderation[i],
+            "vector":  embedding if conv[i]["role"]=="assitant" else None,
+            # conditional moderation value can be added for message of toxic conversations or None in other cases
+        }
+        messages.append(new_message)
+    df = pd.concat([df, pd.DataFrame(messages, columns=msg_csv_cols)])
+    df.set_index(["message_id"]).index.is_unique
+    return df
+
+
+def create_message_csv(model: str, save_path: str, load_path: str) -> None:
+    """
+    Process original LLM-specific conversation data and create a CSV file containing individual extracted messages.
+
+    Args:
+        model (str): LLM name associated with the conversation data.
+        save_path (str): The directory where the processed dataset will be stored
+        load_path (str): The directory where the original/unprocessed dataset is stored.
+    """
+    # Loads the original dataset containing conversations
+    df_orig = pd.read_csv(os.path.join(load_path, f"{model}.csv"))
+    df_proc = pd.DataFrame(
+        columns=msg_csv_cols,
+    )
+    for i in range(len(df_orig)):
+        conv_list = eval(df_orig.conversation[i].replace("}", "},"))
+        moderation = eval(
+            (df_orig.openai_moderation[i]).replace("}", "},").replace("},,", "},")
+        )
+
+        df_proc = pd.concat(
+            [
+                df_proc,
+                conversation_to_messages(
+                    conv=conv_list,
+                    id=df_orig.conversation_id[i],
+                    model=df_orig.model[i],
+                    openai_moderation=moderation,
+                ),
+            ],
+            ignore_index=True,
+        )
+
+    # Dimensionality reduction of the embeddings stored in 'vector' column
+    embeddings = df_proc['vector'].tolist()
+    reduced_embeddings = reduce_dimensions(embeddings=embeddings, n_components=3)
+    df_proc['vector'] = reduced_embeddings
+    
+    # Saving the CSV
+    df_proc.to_csv(
+        os.path.join(save_path, f"{model}.csv"),
+        index=False,
+    )
+    print(model, ":", len(df_proc))
+
+
+# llm_models = [
+#     "palm-2",
+#     "gpt-3.5-turbo",
+#     "gpt4all-13b-snoozy",
+# ]
+# for llm in llm_models:
+#     create_message_csv(model=llm)
