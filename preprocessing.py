@@ -1,7 +1,18 @@
+import torch
+from transformers import T5Tokenizer, T5EncoderModel
+import numpy as np
+
 import os
 import pandas as pd
 
 from create_embedding_tsne import getEmbeddingFromText, reduce_dimensions
+
+if torch.cuda.is_available():
+    torch.set_default_tensor_type(torch.cuda.FloatTensor)
+
+# Initialize the T5 model and tokenizer
+encoder_model = T5EncoderModel.from_pretrained("t5-large").to("cuda")
+tokenizer = T5Tokenizer.from_pretrained("t5-large")
 
 conv_csv_cols = [
     "conversation_id",
@@ -55,7 +66,7 @@ def conversation_to_messages(
             "content": conv[i]["content"],
             "toxicity": is_toxic,
             "openai_moderation": openai_moderation[i],
-            "vector":  embedding if conv[i]["role"]=="assitant" else None,
+            "vector":  embedding if conv[i]["role"]=="assistant" else None,
             # conditional moderation value can be added for message of toxic conversations or None in other cases
         }
         messages.append(new_message)
@@ -99,7 +110,8 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
 
     # Dimensionality reduction of the embeddings stored in 'vector' column
     embeddings = df_proc['vector'].tolist()
-    reduced_embeddings = reduce_dimensions(embeddings=embeddings, n_components=3)
+    embeddings_array = np.array(embeddings)
+    reduced_embeddings = reduce_dimensions(embeddings=embeddings_array, n_components=3)
     df_proc['vector'] = reduced_embeddings
     
     # Saving the CSV
