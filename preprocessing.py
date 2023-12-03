@@ -154,7 +154,7 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
 def createTopicSummary(message_text):
     prompt = f"Summarize the following message in less than 7 words:\n\n{message_text}"
     response = client.chat.completions.create(
-                model="gpt4-turbo",
+                model="gpt-4-1106-preview",
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
