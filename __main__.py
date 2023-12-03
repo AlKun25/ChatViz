@@ -1,12 +1,9 @@
 import os
-from dotenv import load_dotenv
 from dataloader import filter_dataset
 from preprocessing import create_message_csv
 
-load_dotenv()
-
-original_data_dir = os.environ["ORIGINAL_CSV_DIR"]
-processed_data_dir = os.environ["PROCESSED_CSV_DIR"]
+original_data_dir = "./data/orig/"
+processed_data_dir = "./data/proc/"
 
 llms = [
     "palm-2",

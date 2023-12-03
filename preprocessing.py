@@ -1,11 +1,20 @@
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
 import numpy as np
+from sklearn.cluster import KMeans
+from openai import OpenAI
 
+from dotenv import load_dotenv
+load_dotenv()
 import os
 import pandas as pd
 
 from create_embedding_tsne import getEmbeddingFromText, reduce_dimensions
+
+
+client = OpenAI(
+    api_key=os.environ.get("OPENAI_API_KEY"),
+)
 
 if torch.cuda.is_available():
     torch.set_default_tensor_type(torch.cuda.FloatTensor)
@@ -66,7 +75,7 @@ def conversation_to_messages(
             "content": conv[i]["content"],
             "toxicity": is_toxic,
             "openai_moderation": openai_moderation[i],
-            "vector":  embedding if conv[i]["role"]=="assistant" else None,
+            "vector":  embedding # if conv[i]["role"]=="assistant" else None,
             # conditional moderation value can be added for message of toxic conversations or None in other cases
         }
         messages.append(new_message)
@@ -112,15 +121,50 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
     embeddings = df_proc['vector'].tolist()
     embeddings_array = np.array(embeddings)
     reduced_embeddings = reduce_dimensions(embeddings=embeddings_array, n_components=3)
+
     df_proc['vector'] = reduced_embeddings
+
+    # Perform KMeans clustering
+    kmeans = KMeans(n_clusters=10, random_state=0, n_init="auto").fit(reduced_embeddings)
     
-    # Saving the CSV
+    # Assigning cluster labels to the DataFrame
+    cluster_labels = kmeans.labels_
+    df_proc['cluster'] = np.nan  # Initialize the column with NaN values
+    df_proc.loc[df_proc['vector'].notnull(), 'cluster'] = cluster_labels  # Assign clusters only to rows with embeddings
+
+    # Retrieve original message text for the cluster centers
+    for cluster_id, center in enumerate(kmeans.cluster_centers_):
+        closest_idx = np.argmin(np.linalg.norm(reduced_embeddings - center, axis=1))
+        closest_message = df_proc.iloc[closest_idx]['content']
+        cluster_summary = createTopicSummary(closest_message)
+        print(f"Cluster {cluster_id} summary: {cluster_summary}")
+        # Add the summary as a new column, labeled as 'cluster_summary'
+        df_proc.loc[df_proc['cluster'] == cluster_id, 'cluster_summary'] = cluster_summary
+
+
+    # Saving the CSV with cluster information
     df_proc.to_csv(
         os.path.join(save_path, f"{model}.csv"),
         index=False,
     )
     print(model, ":", len(df_proc))
 
+
+
+def createTopicSummary(message_text):
+    prompt = f"Summarize the following message in less than 7 words:\n\n{message_text}"
+    response = client.chat.completions.create(
+                model="gpt4-turbo",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=50,
+                temperature=0.8,
+                top_p=1,
+                frequency_penalty=0,
+                presence_penalty=0,
+            )
+    return response.choices[0].message.content
 
 # llm_models = [
 #     "palm-2",
