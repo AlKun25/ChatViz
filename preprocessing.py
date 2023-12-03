@@ -1,6 +1,7 @@
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
 import numpy as np
+from sklearn.cluster import KMeans
 
 import os
 import pandas as pd
@@ -66,7 +67,7 @@ def conversation_to_messages(
             "content": conv[i]["content"],
             "toxicity": is_toxic,
             "openai_moderation": openai_moderation[i],
-            "vector":  embedding if conv[i]["role"]=="assistant" else None,
+            "vector":  embedding # if conv[i]["role"]=="assistant" else None,
             # conditional moderation value can be added for message of toxic conversations or None in other cases
         }
         messages.append(new_message)
@@ -112,14 +113,30 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
     embeddings = df_proc['vector'].tolist()
     embeddings_array = np.array(embeddings)
     reduced_embeddings = reduce_dimensions(embeddings=embeddings_array, n_components=3)
+
     df_proc['vector'] = reduced_embeddings
+
+    # Perform KMeans clustering
+    kmeans = KMeans(n_clusters=10, random_state=0, n_init="auto").fit(reduced_embeddings)
     
-    # Saving the CSV
+    # Assigning cluster labels to the DataFrame
+    cluster_labels = kmeans.labels_
+    df_proc['cluster'] = np.nan  # Initialize the column with NaN values
+    df_proc.loc[df_proc['vector'].notnull(), 'cluster'] = cluster_labels  # Assign clusters only to rows with embeddings
+
+    # Saving the CSV with cluster information
     df_proc.to_csv(
         os.path.join(save_path, f"{model}.csv"),
         index=False,
     )
     print(model, ":", len(df_proc))
+
+    # Retrieve original message text for the cluster centers
+    for cluster_id, center in enumerate(kmeans.cluster_centers_):
+        closest_idx = np.argmin(np.linalg.norm(reduced_embeddings - center, axis=1))
+        closest_message = df_proc.iloc[closest_idx]['content']
+        print(f"Cluster {cluster_id}: {closest_message}")
+
 
 
 # llm_models = [
