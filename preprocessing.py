@@ -121,7 +121,6 @@ def create_message_csv(model: str, save_path: str, load_path: str) -> None:
     embeddings = df_proc['vector'].tolist()
     embeddings_array = np.array(embeddings)
     reduced_embeddings = reduce_dimensions(embeddings=embeddings_array, n_components=3)
-
     df_proc['vector'] = reduced_embeddings.tolist()
 
     # Perform KMeans clustering
