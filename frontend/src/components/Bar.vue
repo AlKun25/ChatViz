@@ -4,7 +4,7 @@ import Data from '../../data/demo.json'; /* Example of reading in data directly 
 import axios from 'axios';
 import { isEmpty, debounce } from 'lodash';
 
-import { Bar, ComponentSize, Margin } from '../types';
+import { Bar, ComponentSize, Margin, Messages } from '../types';
 // A "extends" B means A inherits the properties and methods from B.
 interface CategoricalBar extends Bar{
     category: string;
@@ -30,19 +30,14 @@ export default {
     },
     // Anything in here will only be executed once.
     // Refer to the lifecycle in Vue.js for more details, mentioned at the very top of this file.
-    created() {
-        // fetch the data via GET request when we init this component. 
-        // In axios anything we send back in the response are always bound to the "data" property.
-        /*
-        axios.get(`<some-API-endpoint>`)
-            .then(resp => { 
-                this.bars = resp.data; // resp.data contains the content, with the format specified by the API you use.
-                return true;
-            })
-            .catch(error => console.log(error));
-        */
-        console.log(Data);
-        if (isEmpty(Data)) return;
+    async created() {
+        const rawData = await d3.csv("../../data/palm-2.csv");
+        let parsedData = rawData.map(d => ({
+            message_id: d.message_id,
+            sentiment: d.sentiment,
+        }));
+        console.log(rawData[0]);
+        
         this.bars = Data.data;
     },
     methods: {

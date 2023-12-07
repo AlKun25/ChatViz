@@ -19,3 +19,16 @@ export interface Point {
 export interface Bar{
     readonly value: number;
 }
+
+export interface Messages {
+    message_id: string;
+    embedding: string;
+    cluster: string;
+    cluster_summary: string;
+    content: string;
+    openai_moderation: string;
+    toxicity: string;
+    role: string;
+    turn: number;
+    model: string;
+}
