@@ -15,6 +15,7 @@
     "d3-sankey": "^0.12.3",
     "lodash": "^4.17.21",
     "pinia": "^2.0.28",
+    "three": "^0.159.0",
     "vite-plugin-vuetify": "^1.0.1",
     "vue": "^3.2.45",
     "vuetify": "^3.0.6"
@@ -23,6 +24,7 @@
     "@types/d3": "^7.4.0",
     "@types/d3-sankey": "^0.12.3",
     "@types/lodash": "^4.14.191",
+    "@types/three": "^0.159.0",
     "@vitejs/plugin-vue": "^4.0.0",
     "typescript": "^4.9.3",
     "vite": "^4.0.0",

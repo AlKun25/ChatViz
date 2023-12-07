@@ -88,6 +88,16 @@ export default {
             const group = donutContainer.append('g')
                 .attr('transform', `translate(${this.size.width / 2}, ${this.size.height / 2})`);
 
+            const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+
+            group.selectAll('path')
+                .data(arcs)
+                .join('path')
+                .attr('d', d => arc(d as any) as string)
+                // Use the index to select a color from the array
+                .attr('fill', (d, i) => colors[i % colors.length]);
+            
+            /* use predefined colors above for each cluster 
             const colorScale = d3.scaleOrdinal()
                 .domain(updatedChartData.map(d => d.cluster))
                 .range(schemeCategory10);
@@ -97,6 +107,7 @@ export default {
                 .join('path')
                 .attr('d', d => arc(d as any) as string)
                 .attr('fill', (d, i) => colorScale(d.data.cluster) as string);
+            */
 
             const arcLabel = d3.arc()
                 .innerRadius(radius * 1.1)
