@@ -1,5 +1,16 @@
 <template>
+    <v-switch @click="toggleColor" label="Show Toxicity"></v-switch>
     <div class="chart-container-embeddings" id="chart-container-embeddings" ref="embeddingContain">
+        <div id="popup" class="popup" style="opacity:0;">
+            <!--div class="row"><button id="close-button" @click="hidePopup">[close]</button></div-->
+            <div class="row"><h3>Message Details</h3><div id="popup-content"></div></div>
+            
+        </div>
+    </div>
+    
+    <div id="overlay">
+      <div class="loader">
+      </div>
     </div>
 </template>
 
@@ -9,25 +20,11 @@ import { NormalBufferAttributes } from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import * as d3 from "d3";
 import { isEmpty, debounce } from 'lodash';
-import { ComponentSize, Margin } from '../types';
+import { ComponentSize, Margin, Messages } from '../types';
 import { useEventEmitter } from '../emitter';
 
 const emitter = useEventEmitter();
 
-
-interface Messages {
-    message_id: string;
-    embedding: string;
-    cluster: string;
-    cluster_summary: string;
-    content: string;
-    openai_moderation: string;
-    toxicity: string;
-    role: string;
-    turn: number;
-    model: string;
-    
-}
 
 export default {
     data() {
@@ -35,6 +32,7 @@ export default {
             chartData: [] as Messages[],
             size: { width: 0, height: 0 } as ComponentSize,
             margin: { left: 50, right: 50, top: 50, bottom: 50 } as Margin,
+            showToxicity: false,
         }
     },
     computed: {
@@ -43,7 +41,7 @@ export default {
         },
     },
     async created() {
-        const rawData = await d3.csv("../../data/palm-2.csv");
+        const rawData = await d3.csv("../../data/proc/palm-2.csv");
         let parsedData = rawData.map(d => ({
             message_id: d.message_id,
             embedding: d.vector,
@@ -60,6 +58,33 @@ export default {
         this.chartData = parsedData.filter((d) => d.model == "palm-2");
     },
     methods: {
+        showLoading: function (seconds: number) {
+            const overlay = document.getElementById("overlay");
+            if (overlay) {
+                overlay.style.display = "block";
+                setTimeout(function () {
+                    overlay.style.display = "none";
+                }, seconds * 1000);
+            } 
+        },
+        hideLoading: function () {
+            const overlay = document.getElementById("overlay");
+            if (overlay) {
+                overlay.style.display = "none";
+            }
+        },
+        toggleColor() {
+            this.showLoading(10);
+            this.showToxicity = !this.showToxicity;
+            d3.select('#chart-container-embeddings').selectAll('*').remove();
+            this.initChart();
+        },
+        hidePopup() {
+            const popup = d3.select("#popup");
+            popup.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+        },
         onResize() {
             let target = this.$refs.donutContainer as HTMLElement;
             if (target === undefined) return;
@@ -107,6 +132,13 @@ export default {
                 let geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
                 let color = colors[parseInt(d.cluster)];
+                if (this.showToxicity) {
+                    if (d.toxicity == "True") {
+                        color = "#ff0000";
+                    } else {
+                        color = "#00ff00";
+                    }
+                }
                 const pointMaterial = new THREE.PointsMaterial({ color: color, size: 0.2 });
                 const point = new THREE.Points(geometry, pointMaterial);
                 point.userData = d;
@@ -137,7 +169,9 @@ export default {
 
                     if (data) {
                         showDataForPoint(data);
-                    }
+                    } 
+                } else {
+                    that.hidePopup();
                 }
             }
             document.addEventListener('mousedown', onDocumentMouseDown as EventListener, false);
@@ -147,8 +181,16 @@ export default {
                 // this function gets called when user clicks on a point
                 const summary = data.cluster_summary;
                 console.log("summary: ", summary);
+                // sankey, text analysis, etc.
+                const popup = d3.select("#popup");
+                const popupcontent = d3.select("#popup-content");
+                popup.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                popupcontent.html(`Message: ${data.content} <br>Cluster topic: ${data.cluster_summary} <br> OpenAI Moderation: ${data.openai_moderation}`);
                 
             }
+            
             // how far away the camera is from the points on the z-axis
             camera.position.z = 35;
 
@@ -163,6 +205,7 @@ export default {
             }
 
             animate();
+            this.hideLoading();
 
         }
     },
@@ -183,3 +226,52 @@ export default {
     }
 }
 </script>
+<style scoped>
+.loader {
+  border: 16px solid #f3f3f3; /* Light grey */
+  border-top: 16px solid #10a37f;
+  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  animation: spin 2s linear infinite;
+  position: relative;
+  top: 45%;
+  left: 45%;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+#overlay {
+  position: fixed; /* Sit on top of the page content */
+  width: 100%; /* Full width (cover the whole page) */
+  height: 100%; /* Full height (cover the whole page) */
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5); /* Black background with opacity */
+  z-index: 2; /* Specify a stack order in case you're using a different order for other elements */
+  cursor: pointer; /* Add a pointer on hover */
+}
+.popup {
+    position: absolute;
+    text-align: center;
+    width: 400px;
+    height: 400px;
+    padding: 2px;
+    font: 12px sans-serif;
+    background: lightsteelblue;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    overflow: scroll;
+}
+#close-button {
+    position: absolute;
+    right: 2px;
+    cursor: pointer;
+    z-index:10;
+}
+</style>

@@ -1,7 +1,6 @@
 <script lang="ts">
 
 import Notes from './components/Notes.vue'
-import Example from './components/Example.vue'
 import Pie from './components/Pie.vue';
 import Embeddings from './components/Embeddings.vue';
 /*
@@ -11,7 +10,6 @@ import ExampleWithInteractions from './components/ExampleWithInteractions.vue';*
 export default {
   components: {
     Notes,
-    Example,
     Pie,
     Embeddings,
     /*
