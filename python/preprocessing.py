@@ -1,5 +1,6 @@
 import torch
 from transformers import T5Tokenizer, T5EncoderModel
+import tiktoken
 import numpy as np
 from sklearn.cluster import KMeans
 from openai import OpenAI
@@ -164,6 +165,12 @@ def createTopicSummary(message_text):
                 presence_penalty=0,
             )
     return response.choices[0].message.content
+
+def num_tokens_from_string(string: str, encoding_name: str="gpt2") -> int:
+    """Returns the number of tokens in a text string."""
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
+    return num_tokens
 
 # llm_models = [
 #     "palm-2",
