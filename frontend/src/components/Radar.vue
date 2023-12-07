@@ -236,10 +236,16 @@ export default {
                     }
 
                     let polygonVertices = elementPositions.map(function (pos, i) {
-                        let scaledValue: number = 1 + (elementValues[i]/100) * 100 ;
+                        let scaledValue: number = 1 + (elementValues[i]);;
+                        if(elementValues[i]!=0){
+                            scaledValue = scaledValue*1.5 
+                        }
+                        else {
+                            scaledValue = scaledValue*0.75;
+                        }
                         return [
-                            centerX + (circleRadius * scaledValue / 130) * Math.cos(i * angleOffset),
-                            centerY + (circleRadius * scaledValue / 130) * Math.sin(i * angleOffset)
+                            centerX + (circleRadius * scaledValue * 0.25) * Math.cos(i * angleOffset),
+                            centerY + (circleRadius * scaledValue * 0.25) * Math.sin(i * angleOffset)
                         ];
                     });
 
