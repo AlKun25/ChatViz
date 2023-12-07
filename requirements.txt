@@ -6,3 +6,4 @@ torch
 transformers
 scikit-learn
 openai
+tiktoken
