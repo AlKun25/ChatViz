@@ -3,6 +3,9 @@
         <svg id="donut-svg" width="100%" height="100%">
         </svg>
     </div>
+    <div id="tooltip-pie" class="tooltip-pie" style="opacity:0;">
+        <p><span id="tooltip-value"></span></p>
+    </div>
 </template>
 
 <script lang="ts">
@@ -11,14 +14,23 @@ import axios from 'axios';
 import { isEmpty, debounce } from 'lodash';
 import { ComponentSize, Margin } from '../types';
 import { schemeCategory10 } from 'd3-scale-chromatic';
+import { Messages } from '../types';
 
 interface ClusterNumber {
     cluster: string;
+    cluster_summary: string;
     model: string;
     
 }
 
 export default {
+    /*
+    props: {
+        someProp: {
+            type: Array,
+            default: () => []  // Provide a default empty array
+        }
+    },*/
     data() {
         return {
             chartData: [] as ClusterNumber[],
@@ -32,13 +44,15 @@ export default {
         },
     },
     async created() {
-        const rawData = await d3.csv("../../data/palm-2.csv");
+        // const rawData = this.someProp;
+        const rawData = await d3.csv("../../data/proc/palm-2.csv");
         let parsedData = rawData.map(d => ({
-            cluster: (d.cluster).toString(),
+            cluster: d.cluster.toString(),
             model: d.model,
-        }));
+            cluster_summary: d.cluster_summary,
+        }) as { cluster: string; cluster_summary: string; model: string });
         console.log(rawData[0]);
-        this.chartData = parsedData.filter((d) => d.model == "palm-2");
+        this.chartData = parsedData; 
     },
     methods: {
         onResize() {
@@ -52,34 +66,29 @@ export default {
             const radius = Math.min(this.size.width - this.margin.left - this.margin.right,
                 this.size.height - this.margin.top - this.margin.bottom) / 2;
 
-            // Count the occurrences of each job title
             const groupedData = this.chartData.reduce((acc, cur) => {
-                const clusterNumber = cur.cluster || "Other"; // Use a default value "Other" if cluster is undefined
+                const clusterNumber = cur.cluster;
+                const clusterSummary = cur.cluster_summary;
                 if (acc[clusterNumber]) {
-                    acc[clusterNumber]++;
+                    acc[clusterNumber].count++;
                 } else {
-                    acc[clusterNumber] = 1;
+                    acc[clusterNumber] = { count: 1, summary: clusterSummary };
                 }
                 return acc;
-            }, {} as Record<string, number>);
+            }, {} as Record<string, { count: number, summary: string }>);
 
-            const uniqueChartData = Object.entries(groupedData).map(([clusterNumber, count]) => ({
+            const uniqueChartData = Object.entries(groupedData).map(([clusterNumber, { count, summary }]) => ({
                 cluster: clusterNumber,
-                count: count
+                count: count,
+                summary: summary
             }));
-
+            
             const sortedData = uniqueChartData.sort((a, b) => b.count - a.count);
 
-            const topJobs = sortedData.slice(0, 8);
-
-            const otherCount = sortedData.slice(8).reduce((acc, cur) => acc + cur.count, 0);
-
-            const updatedChartData = [...topJobs, { cluster: "Other", count: otherCount }];
-
-            const pie = d3.pie<{ cluster: string; count: number }>()
+            const pie = d3.pie<{ cluster: string; count: number; summary: string }>()
                 .value(d => d.count);
 
-            const arcs = pie(updatedChartData);
+            const arcs = pie(sortedData);
 
             const arc = d3.arc()
                 .innerRadius(radius * 0.6)
@@ -90,24 +99,26 @@ export default {
 
             const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
 
+            const tooltip = d3.select("#tooltip-pie");
             group.selectAll('path')
                 .data(arcs)
                 .join('path')
                 .attr('d', d => arc(d as any) as string)
                 // Use the index to select a color from the array
-                .attr('fill', (d, i) => colors[i % colors.length]);
-            
-            /* use predefined colors above for each cluster 
-            const colorScale = d3.scaleOrdinal()
-                .domain(updatedChartData.map(d => d.cluster))
-                .range(schemeCategory10);
-
-            group.selectAll('path')
-                .data(arcs)
-                .join('path')
-                .attr('d', d => arc(d as any) as string)
-                .attr('fill', (d, i) => colorScale(d.data.cluster) as string);
-            */
+                .attr('fill', (d, i) => colors[i % colors.length])
+                .on("mouseover", (event, d) => {
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", .9);
+                    tooltip.html(`Cluster Summary: ${d.data.summary} <br> Message Count: ${d.data.count}`)
+                        .style("left", (event.pageX) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", () => {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                }); 
 
             const arcLabel = d3.arc()
                 .innerRadius(radius * 1.1)
@@ -154,5 +165,23 @@ export default {
 <style scoped>
 .chart-container-donut {
     height: 100%;
+}
+.tooltip-pie {
+    position: absolute;
+    text-align: center;
+    width: 200px;
+    height: 60px;
+    padding: 2px;
+    font: 12px sans-serif;
+    background: lightsteelblue;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+    overflow-y: scroll;
+}
+
+/* Hide the tooltip when not in use */
+.tooltip-pie {
+    opacity: 0;
 }
 </style>

@@ -4,7 +4,16 @@
         <div id="popup" class="popup" style="opacity:0;">
             <!--div class="row"><button id="close-button" @click="hidePopup">[close]</button></div-->
             <div class="row"><h3>Message Details</h3><div id="popup-content"></div></div>
-            
+            <v-row style="height: 300px">
+                <v-col cols="5" style="height: 250px">
+                    <Bar />
+                </v-col>
+                <v-col cols="7" style="height: 250px">
+                    <Radar />
+                </v-col>
+            </v-row>
+        </div>
+        <div id="legends">
         </div>
     </div>
     
@@ -22,6 +31,9 @@ import * as d3 from "d3";
 import { isEmpty, debounce } from 'lodash';
 import { ComponentSize, Margin, Messages } from '../types';
 import { useEventEmitter } from '../emitter';
+import { state } from '../state';
+import Bar from './Bar.vue';
+import Radar from './Radar.vue';
 
 const emitter = useEventEmitter();
 
@@ -33,7 +45,12 @@ export default {
             size: { width: 0, height: 0 } as ComponentSize,
             margin: { left: 50, right: 50, top: 50, bottom: 50 } as Margin,
             showToxicity: false,
+            selectedMessage: [] as Messages[],
         }
+    },
+    components: {
+        Bar,
+        Radar,
     },
     computed: {
         rerender() {
@@ -102,8 +119,8 @@ export default {
             const renderer = new THREE.WebGLRenderer();
             renderer.setSize( window.innerWidth, window.innerHeight );
             renderer.setClearColor(0xFFFFFF, 1);
-            renderer.setSize(window.innerWidth, window.innerHeight * 0.8);
-            renderer.domElement.style.height = '80%';
+            renderer.setSize(window.innerWidth, window.innerHeight * 0.7);
+            renderer.domElement.style.height = '70%';
             renderer.domElement.style.width = '100%';
 
             let embedding_div = document.getElementById("chart-container-embeddings");
@@ -134,9 +151,9 @@ export default {
                 let color = colors[parseInt(d.cluster)];
                 if (this.showToxicity) {
                     if (d.toxicity == "True") {
-                        color = "#ff0000";
+                        color = "#DC3220";
                     } else {
-                        color = "#00ff00";
+                        color = "#005AB5";
                     }
                 }
                 const pointMaterial = new THREE.PointsMaterial({ color: color, size: 0.2 });
@@ -175,8 +192,13 @@ export default {
                 }
             }
             document.addEventListener('mousedown', onDocumentMouseDown as EventListener, false);
+            const selections = state.selections;
 
             function showDataForPoint(data: Messages) {
+                Object.entries(data).forEach(([key, value]) => {
+                    selections.set(key, value);
+                });
+                emitter.$emit('update-chart', data);
                 // show text analysis for the point
                 // this function gets called when user clicks on a point
                 const summary = data.cluster_summary;
@@ -187,7 +209,7 @@ export default {
                 popup.transition()
                         .duration(200)
                         .style("opacity", .9);
-                popupcontent.html(`Message: ${data.content} <br>Cluster topic: ${data.cluster_summary} <br> OpenAI Moderation: ${data.openai_moderation}`);
+                popupcontent.html(`<b>Message:</b> ${data.content} <br><b>Cluster ${data.cluster}:</b> ${data.cluster_summary} <br><b>Role:</b> ${data.role}<br><b>Toxicity:</b> ${data.toxicity}<br>`);
                 
             }
             
@@ -207,6 +229,55 @@ export default {
             animate();
             this.hideLoading();
 
+            d3.select("#legends").selectAll('*').remove(); // Clear existing legend entries if any.
+            const clusterNames = ["Cluster 0: Shocking aspect of NAME_1's past?", 
+            "Cluster 1: Thesis on Network-Level Brute Force Detection", 
+            "Cluster 2: Device for raising/lowering boats in waterways.", 
+            "Cluster 3: Topic's controversy explained.", 
+            "Cluster 4: Multiplication by chunking steps.", 
+            "Cluster 5: Locate cheap, used RTX4090 computer.", 
+            "Cluster 6: Unable to assist, provide feedback if erroneous.", 
+            "Cluster 7: NAME_1 and NAME_3 found an empty vault.", 
+            "Cluster 8: Paper on attention-based neural network model.", 
+            "Cluster 9: Fix non-existent error."];
+            const legendContainer = d3.select("#legends");
+
+            legendContainer.append('text')
+            .text('Cluster Topic Summary')
+            .attr('x', 10)
+            .attr('y', 8)
+            .style('font-weight', 'bold')
+            .style('text-anchor', 'start');
+            
+            // Bind the data to the legend container, creating one `.legend-entry` div per cluster name
+            let legendEntry = legendContainer.selectAll('.legend-entry')
+                .data(clusterNames)
+                .enter()
+                .append('div')
+                .attr('class', 'legend-entry');
+
+            
+
+            // Append a color box to each legend entry
+            legendEntry.append('div')
+                .attr('class', 'legend-color-box')
+                .attr('fill', colors)
+                .attr('x', 90)
+                .attr('y', 40)
+                .attr('z-index', 1000000000000)
+                .style('background-color', (d, i) => colors[i])
+                .style('width', '15px')
+                .style('height', '15px');
+
+
+            // Append a text label to each legend entry
+            legendEntry.append('div')
+                .attr('class', 'legend-text')
+                .text(d => d)
+                .style('font-size', '10px');
+
+            
+            
         }
     },
     watch: {
@@ -257,8 +328,8 @@ export default {
 .popup {
     position: absolute;
     text-align: center;
-    width: 400px;
-    height: 400px;
+    width: 700px;
+    height: 450px;
     padding: 2px;
     font: 12px sans-serif;
     background: lightsteelblue;
@@ -273,5 +344,34 @@ export default {
     right: 2px;
     cursor: pointer;
     z-index:10;
+}
+#legends {
+  width: 200px;
+  position: absolute;
+  top: 50px; /* Adjust as needed */
+  right: 20px; /* Adjust as needed */
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  z-index: 100; /* Make sure the legend is above the Three.js canvas */
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.legend-color-box {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 1px solid #000;
+}
+
+.legend-text {
+  font-size: 10px;
+  color: #333;
 }
 </style>
