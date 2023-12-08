@@ -32,6 +32,7 @@ export default {
         return {
             chartData: {} as Toxicity,
             preprocessData: {} as OAI,
+            msg_toxic: Boolean,
             size: { width: 0, height: 0 } as ComponentSize,
             margin: { left: 50, right: 50, top: 50, bottom: 50 } as Margin,
         }
@@ -60,6 +61,7 @@ export default {
             // const example = "{'categories': {'harassment': False, 'harassment/threatening': False, 'hate': False, 'hate/threatening': False, 'self-harm': False, 'self-harm/instructions': False, 'self-harm/intent': False, 'sexual': False, 'sexual/minors': False, 'violence': False, 'violence/graphic': False}, 'category_scores': {'harassment': 4.2268514e-08, 'harassment/threatening': 1.968493e-09, 'hate': 1.574229e-08, 'hate/threatening': 9.697849e-11, 'self-harm': 4.6034412e-11, 'self-harm/instructions': 8.869029e-12, 'self-harm/intent': 8.679583e-13, 'sexual': 4.3375917e-07, 'sexual/minors': 5.3620926e-07, 'violence': 2.966025e-06, 'violence/graphic': 1.4624901e-06}, 'flagged': False}";
             this.preprocessData = parsedData.filter((d) => d.message_id == "1e7844b921d44b798f59deb92b7d41da_9")[0];
             */
+            this.msg_toxic = moderation.flagged;
             let processData = this.preprocess(moderation);
             console.log("processData: ", processData);
             this.chartData = processData;
@@ -139,27 +141,9 @@ export default {
             let numElements = elements.length;
             let angleOffset = (2 * Math.PI) / numElements;
 
-            let colors = [
-                "rgba(0, 128, 0, 0.3)",
-                "rgba(255, 0, 0, 0.3)",
-                "rgba(0, 0, 255, 0.3)",
-                "rgba(255, 255, 0, 0.3)",
-                "rgba(0, 255, 255, 0.3)",
-                "rgba(255, 0, 255, 0.3)",
-                "rgba(192, 192, 192, 0.3)",
-                "rgba(128, 128, 0, 0.3)",
-                "rgba(128, 0, 128, 0.3)",
-                "rgba(0, 128, 128, 0.3)",
-                "rgba(128, 128, 128, 0.3)",
-                "rgba(255, 165, 0, 0.3)",
-                "rgba(255, 192, 203, 0.3)",
-                "rgba(255, 228, 225, 0.3)",
-                "rgba(255, 255, 224, 0.3)",
-                "rgba(51, 161, 201, 0.3)",
-                "rgba(0, 138, 184, 0.3)",
-                "rgba(0, 110, 145, 0.3)",
-                "rgba(0, 82, 109, 0.3)",
-                "rgba(0, 55, 73, 0.3)"
+            const colors = [
+                "#005AB5", 
+                "#DC3220"
             ];
 
             svg.append("circle")
@@ -263,7 +247,8 @@ export default {
                     console.log(polygonVertices);
                     
 
-                    let color = colors[colorIndex % colors.length];
+                    // let color = colors[colorIndex % colors.length];
+                    let color = this.msg_toxic ? colors[1] : colors[0];
                     // colorIndex++;
 
 
@@ -284,9 +269,9 @@ export default {
             let legend = svg.append("g")
                 .attr("class", "legend")
                 .attr("transform", "translate(" + legendX + "," + legendY + ")");
-
+            const legendlbls: string[] = ["Non-Toxic", "Toxic"];
             let legendLabels = legend.selectAll(".legend-label")
-                .data(Object.keys(data))
+                .data(legendlbls)
                 .enter().append("g")
                 .attr("class", "legend-label")
                 .attr("data-key", function (d) {
