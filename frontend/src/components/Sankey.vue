@@ -52,7 +52,7 @@ export default {
     }
   },
   async created() {
-    const rawData = await d3.csv("/Users/kunalmundada/Documents/code/ChatViz/data/proc/palm-2.csv");
+    const rawData = await d3.csv("../../data/proc/palm-2.csv");
     const parsedSet = d3.rollup(
       rawData,
       (v) => v.length,
@@ -86,19 +86,28 @@ export default {
       console.log("Let's create some data for Sankey ...");
       const keys = columns.slice(0, -1);
       let index = -1;
-      const nodes = [];
-      const nodeByKey = new d3.InternMap([], JSON.stringify);
-      const indexByKey = new d3.InternMap([], JSON.stringify);
-      const links = [];
+      const nodes: Node[] = [];
+      const nodeByKey = new Map();
+      const indexByKey = new Map();
+      const links: Link[] = [];
+      const linkByKey = new Map();
+
+      const nodeKey = ([key, value]: [string, any]) => `${key}-${value}`;
+      const linkKey = (names: string[]) => names.join('→');
+
+      const getValue = (d: DataDistrib, key: string): string | number | boolean => {
+        return (d as any)[key]; // Type assertion here.
+      };
 
       for (const k of keys) {
         for (const d of data) {
-          const key = [k, d[k]];
-          if (nodeByKey.has(key)) continue;
-          const node = { name: d[k] };
-          nodes.push(node);
-          nodeByKey.set(key, node);
-          indexByKey.set(key, ++index);
+          const key = [k, getValue(d, k)];
+          if (nodeByKey.has(nodeKey(key as [string, any]))) continue;
+          const node = { name: getValue(d, k) };
+          nodes.push({ name: node.name } as Node);
+          nodeByKey.set(nodeKey(key as [string, any]), node);
+
+          indexByKey.set(nodeKey(key as [string, any]), ++index);
         }
       }
 
@@ -106,23 +115,28 @@ export default {
         const a = keys[i - 1];
         const b = keys[i];
         const prefix = keys.slice(0, i + 1);
-        const linkByKey = new d3.InternMap([], JSON.stringify);
+
         for (const d of data) {
-          const names = prefix.map(k => d[k]);
+          const names = prefix.map(k => getValue(d, k));
           const value = d.value || 1;
-          let link = linkByKey.get(names);
-          if (link) { link.value += value; continue; }
+          let link = linkByKey.get(linkKey(names.map((name) => name.toString())));
+          if (link) {
+            link.value += value;
+            continue;
+          }
           link = {
-            source: indexByKey.get([a, d[a]]),
-            target: indexByKey.get([b, d[b]]),
+            source: indexByKey.get(nodeKey([a, getValue(d, a)])),
+            target: indexByKey.get(nodeKey([b, getValue(d, b)])),
             names,
             value
           };
           links.push(link);
-          linkByKey.set(names, link);
+          linkByKey.set(linkKey(names.map(name => name.toString())), link);
         }
       }
+
       this.sankeyData = { nodes, links };
+      console.log("sankey data: ", this.sankeyData);
     },
     initChart(): void {
       const width = this.size.width;
