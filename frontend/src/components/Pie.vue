@@ -97,7 +97,8 @@ export default {
             const group = donutContainer.append('g')
                 .attr('transform', `translate(${this.size.width / 2}, ${this.size.height / 2})`);
 
-            const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+            // const colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+            const colors = ["#2ca02c", "#d62728", "#7f7f7f", "#e377c2", "#8c564b", "#1f77b4",  "#17becf", "#ff7f0e", "#9467bd", "#bcbd22"];
 
             const tooltip = d3.select("#tooltip-pie");
             group.selectAll('path')
@@ -105,7 +106,7 @@ export default {
                 .join('path')
                 .attr('d', d => arc(d as any) as string)
                 // Use the index to select a color from the array
-                .attr('fill', (d, i) => colors[i % colors.length])
+                .attr('fill', (d, i) => colors[i])
                 .on("mouseover", (event, d) => {
                     tooltip.transition()
                         .duration(200)
