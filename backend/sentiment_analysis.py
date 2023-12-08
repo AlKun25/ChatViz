@@ -8,6 +8,7 @@ from transformers import TFAutoModelForSequenceClassification
 from transformers import AutoTokenizer, AutoConfig
 import numpy as np
 from scipy.special import softmax
+import json
 
 def preprocess(text):
     new_text = []
@@ -61,9 +62,11 @@ def sentiment_analysis(text: str)->list:
     for i in range(scores.shape[0]):
         l = config.id2label[ranking[i]]
         s = scores[ranking[i]]
-        result.append({"category": l, "value": np.round(float(s), 4)})
-    print(result)
-    return result
+        entry_dict = {"category": l, "value": np.round(float(s), 4)}
+        result.append(entry_dict)
+    result_json = json.dumps(result)
+    print(result_json)
+    return result_json
 
 
 def emotion_analysis(text: str)->list:
