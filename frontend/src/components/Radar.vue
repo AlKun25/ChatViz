@@ -1,9 +1,4 @@
-<template>
-    <div class="chart-container-radar" ref="radarContainer">
-        <svg id="radar-svg" width="100%" height="100%">
-        </svg>
-    </div>
-</template>
+
 
 <script lang="ts">
 import * as d3 from "d3";
@@ -32,7 +27,7 @@ export default {
         return {
             chartData: {} as Toxicity,
             preprocessData: {} as OAI,
-            msg_toxic: Boolean,
+            msg_toxic: false as Boolean,
             size: { width: 0, height: 0 } as ComponentSize,
             margin: { left: 50, right: 50, top: 50, bottom: 50 } as Margin,
         }
@@ -61,10 +56,19 @@ export default {
             // const example = "{'categories': {'harassment': False, 'harassment/threatening': False, 'hate': False, 'hate/threatening': False, 'self-harm': False, 'self-harm/instructions': False, 'self-harm/intent': False, 'sexual': False, 'sexual/minors': False, 'violence': False, 'violence/graphic': False}, 'category_scores': {'harassment': 4.2268514e-08, 'harassment/threatening': 1.968493e-09, 'hate': 1.574229e-08, 'hate/threatening': 9.697849e-11, 'self-harm': 4.6034412e-11, 'self-harm/instructions': 8.869029e-12, 'self-harm/intent': 8.679583e-13, 'sexual': 4.3375917e-07, 'sexual/minors': 5.3620926e-07, 'violence': 2.966025e-06, 'violence/graphic': 1.4624901e-06}, 'flagged': False}";
             this.preprocessData = parsedData.filter((d) => d.message_id == "1e7844b921d44b798f59deb92b7d41da_9")[0];
             */
-            this.msg_toxic = moderation.flagged;
+            let jsonString = moderation.replace(/False/g, 'false').replace(/True/g, 'true').replace(/'/g, '"');
+            const jsonObject: {
+                categories: Record<string, boolean>,
+                category_scores: Record<string, number>,
+                flagged: boolean
+            } = JSON.parse(jsonString);
+
+            this.msg_toxic = jsonObject.flagged;
+            console.log("msg_toxic: ", this.msg_toxic);
             let processData = this.preprocess(moderation);
             console.log("processData: ", processData);
             this.chartData = processData;
+            this.initChart();
         },
         onResize() {
             let target = this.$refs.radarContainer as HTMLElement;
@@ -335,3 +339,9 @@ export default {
     height: 100%;
 }
 </style>
+<template>
+    <div class="chart-container-radar" ref="radarContainer">
+        <svg id="radar-svg" width="100%" height="100%">
+        </svg>
+    </div>
+</template>

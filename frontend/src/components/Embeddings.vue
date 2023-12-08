@@ -93,7 +93,9 @@ export default {
         toggleColor() {
             this.showLoading(10);
             this.showToxicity = !this.showToxicity;
-            d3.select('#chart-container-embeddings').selectAll('*').remove();
+            let embedding_div = document.getElementById("chart-container-embeddings");
+            embedding_div?.getElementsByTagName("canvas")[0].remove();
+            //d3.select('#chart-container-embeddings').selectAll('*').remove();
             this.initChart();
         },
         hidePopup() {
@@ -108,6 +110,7 @@ export default {
             this.size = { width: target.clientWidth, height: target.clientHeight };
         },
         initChart() {
+            let embedding_div = document.getElementById("chart-container-embeddings");
             let object3DToDataMap = new Map();
             let that = this;
             
@@ -123,9 +126,8 @@ export default {
             renderer.domElement.style.height = '70%';
             renderer.domElement.style.width = '100%';
 
-            let embedding_div = document.getElementById("chart-container-embeddings");
             if (embedding_div !== null) {
-                embedding_div.appendChild(renderer.domElement);
+                embedding_div.append(renderer.domElement);
             }
             const controls = new OrbitControls(camera, renderer.domElement);
 
@@ -192,17 +194,16 @@ export default {
                 }
             }
             document.addEventListener('mousedown', onDocumentMouseDown as EventListener, false);
-            const selections = state.selections;
+            
 
             function showDataForPoint(data: Messages) {
+                const selections = state.selections;
                 Object.entries(data).forEach(([key, value]) => {
                     selections.set(key, value);
                 });
                 emitter.$emit('update-chart', data);
                 // show text analysis for the point
                 // this function gets called when user clicks on a point
-                const summary = data.cluster_summary;
-                console.log("summary: ", summary);
                 // sankey, text analysis, etc.
                 const popup = d3.select("#popup");
                 const popupcontent = d3.select("#popup-content");
@@ -230,54 +231,82 @@ export default {
             this.hideLoading();
 
             d3.select("#legends").selectAll('*').remove(); // Clear existing legend entries if any.
-            const clusterNames = ["Cluster 0: Shocking aspect of NAME_1's past?", 
-            "Cluster 1: Thesis on Network-Level Brute Force Detection", 
-            "Cluster 2: Device for raising/lowering boats in waterways.", 
-            "Cluster 3: Topic's controversy explained.", 
-            "Cluster 4: Multiplication by chunking steps.", 
-            "Cluster 5: Locate cheap, used RTX4090 computer.", 
-            "Cluster 6: Unable to assist, provide feedback if erroneous.", 
-            "Cluster 7: NAME_1 and NAME_3 found an empty vault.", 
-            "Cluster 8: Paper on attention-based neural network model.", 
-            "Cluster 9: Fix non-existent error."];
             const legendContainer = d3.select("#legends");
+            if (this.showToxicity) {
+                legendContainer.append('text')
+                .text('Toxicity')
+                .attr('x', 10)
+                .attr('y', 8)
+                .style('font-weight', 'bold')
+                .style('text-anchor', 'start');
+                
+                // Bind the data to the legend container, creating one `.legend-entry` div per cluster name
+                let legendEntry = legendContainer.selectAll('.legend-entry')
+                    .data(["Toxic", "Non-Toxic"])
+                    .enter()
+                    .append('div')
+                    .attr('class', 'legend-entry');
+                // Append a color box to each legend entry
+                legendEntry.append('div')
+                    .attr('class', 'legend-color-box')
+                    .attr('fill', colors)
+                    .attr('x', 90)
+                    .attr('y', 40)
+                    .attr('z-index', 1000000000000)
+                    .style('background-color', (d, i) => ["#DC3220", "#005AB5"][i])
+                    .style('width', '15px')
+                    .style('height', '15px');
 
-            legendContainer.append('text')
-            .text('Cluster Topic Summary')
-            .attr('x', 10)
-            .attr('y', 8)
-            .style('font-weight', 'bold')
-            .style('text-anchor', 'start');
-            
-            // Bind the data to the legend container, creating one `.legend-entry` div per cluster name
-            let legendEntry = legendContainer.selectAll('.legend-entry')
-                .data(clusterNames)
-                .enter()
-                .append('div')
-                .attr('class', 'legend-entry');
+                // Append a text label to each legend entry
+                legendEntry.append('div')
+                    .attr('class', 'legend-text')
+                    .text(d => d)
+                    .style('font-size', '10px');
+            } else {
+                const clusterNames = ["Cluster 0: Shocking aspect of NAME_1's past?", 
+                "Cluster 1: Thesis on Network-Level Brute Force Detection", 
+                "Cluster 2: Device for raising/lowering boats in waterways.", 
+                "Cluster 3: Topic's controversy explained.", 
+                "Cluster 4: Multiplication by chunking steps.", 
+                "Cluster 5: Locate cheap, used RTX4090 computer.", 
+                "Cluster 6: Unable to assist, provide feedback if erroneous.", 
+                "Cluster 7: NAME_1 and NAME_3 found an empty vault.", 
+                "Cluster 8: Paper on attention-based neural network model.", 
+                "Cluster 9: Fix non-existent error."];
 
-            
+                legendContainer.append('text')
+                .text('Cluster Topic Summary')
+                .attr('x', 10)
+                .attr('y', 8)
+                .style('font-weight', 'bold')
+                .style('text-anchor', 'start');
+                
+                // Bind the data to the legend container, creating one `.legend-entry` div per cluster name
+                let legendEntry = legendContainer.selectAll('.legend-entry')
+                    .data(clusterNames)
+                    .enter()
+                    .append('div')
+                    .attr('class', 'legend-entry');
+                // Append a color box to each legend entry
+                legendEntry.append('div')
+                    .attr('class', 'legend-color-box')
+                    .attr('fill', colors)
+                    .attr('x', 90)
+                    .attr('y', 40)
+                    .attr('z-index', 1000000000000)
+                    .style('background-color', (d, i) => colors[i])
+                    .style('width', '15px')
+                    .style('height', '15px');
 
-            // Append a color box to each legend entry
-            legendEntry.append('div')
-                .attr('class', 'legend-color-box')
-                .attr('fill', colors)
-                .attr('x', 90)
-                .attr('y', 40)
-                .attr('z-index', 1000000000000)
-                .style('background-color', (d, i) => colors[i])
-                .style('width', '15px')
-                .style('height', '15px');
 
+                // Append a text label to each legend entry
+                legendEntry.append('div')
+                    .attr('class', 'legend-text')
+                    .text(d => d)
+                    .style('font-size', '10px');
 
-            // Append a text label to each legend entry
-            legendEntry.append('div')
-                .attr('class', 'legend-text')
-                .text(d => d)
-                .style('font-size', '10px');
+            }
 
-            
-            
         }
     },
     watch: {
@@ -346,7 +375,7 @@ export default {
     z-index:10;
 }
 #legends {
-  width: 200px;
+  width: 170px;
   position: absolute;
   top: 50px; /* Adjust as needed */
   right: 20px; /* Adjust as needed */
