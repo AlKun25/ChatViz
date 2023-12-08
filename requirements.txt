@@ -8,3 +8,4 @@ scikit-learn
 openai
 tiktoken
 flask
+flask-cors
