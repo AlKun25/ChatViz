@@ -59,7 +59,7 @@ export default {
       // (d) => d.model,
       (d) => d.role, // can there be more toxic messages from one-specific role?
       (d) => (d.toxicity).toString() == "True"? "Toxic" : "Non-Toxic",
-      (d) => "Cluster_" + (d.cluster).toString(),
+      (d) => "Cluster " + (d.cluster).toString() + ": " + (d.cluster_summary).toString(),
       // (d) => "Turn " + (d.turn).toString()
     );
     const parsedData = this.unroll(
@@ -149,20 +149,22 @@ export default {
         .nodePadding(20)
         .extent([[0, 5], [width, height - 5]])
 
-      const color = d3.scaleOrdinal(["user","assistant"], ["#1f77b4", "#ff7f0e"]).unknown("#ccc");
+      const color = d3.scaleOrdinal(["user"], ["#87b5ff"]).unknown("#ccc");
+      // const color = d3.scaleOrdinal(["user","assistant"], ["#1f77b4", "#ff7f0e"]).unknown("#ccc");
       const svg = d3.select("#sankey-svg")
-        .attr("viewBox", [0, 0, width, height])
+        .attr("viewBox", [0, 0, width, height + 20])
         .attr("width", width)
-        .attr("height", height)
+        .attr("height", height )
         .attr("style", "max-width: 100%; height: auto;");
 
       svg.append("text")
         .attr("x", width / 2)
-        .attr("y", height - 20)
+        .attr("y", height)
         .attr("fill", "currentColor")
-        .attr("font-size", "18px")
+        .attr("font-size", "15px")
+        .attr("font-weight", "bold")
         .attr("text-anchor", "middle")
-        .text("Data distribution");
+        .text("Relation between toxicity and message clusters");
 
       const { nodes, links } = sankey({
         nodes: this.sankeyData.nodes.map(d => Object.create(d)),
@@ -193,7 +195,7 @@ export default {
         .text(d => `${d.names.join(" → ")}\n${d.value.toLocaleString()}`);
 
       svg.append("g")
-        .style("font", "10px sans-serif")
+        .style("font", "12px sans-serif")
         .selectAll("text")
         .data(nodes)
         .join("text")

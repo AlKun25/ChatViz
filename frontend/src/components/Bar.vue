@@ -3,21 +3,27 @@ import * as d3 from "d3";
 import Data from '../../data/demo.json'; /* Example of reading in data directly from file */
 import axios from 'axios';
 import { isEmpty, debounce } from 'lodash';
-
+import { state } from '../state';
 import { Bar, ComponentSize, Margin, Messages } from '../types';
+import { useEventEmitter } from '../emitter';
+
+const emitter = useEventEmitter();
+
 // A "extends" B means A inherits the properties and methods from B.
-interface CategoricalBar extends Bar{
+interface SentimentCategory extends Bar{
     category: string;
+    value: number;
 }
 
 // Computed property: https://vuejs.org/guide/essentials/computed.html
 // Lifecycle in vue.js: https://vuejs.org/guide/essentials/lifecycle.html#lifecycle-diagram
 
 export default {
+    
     data() {
         // Here we define the local states of this component. If you think the component as a class, then these are like its private variables.
         return {
-            bars: [] as CategoricalBar[], // "as <Type>" is a TypeScript expression to indicate what data structures this variable is supposed to store.
+            bars: [] as SentimentCategory[], // "as <Type>" is a TypeScript expression to indicate what data structures this variable is supposed to store.
             size: { width: 0, height: 0 } as ComponentSize,
             margin: {left: 40, right: 20, top: 20, bottom: 60} as Margin,
         }
@@ -31,31 +37,38 @@ export default {
     // Anything in here will only be executed once.
     // Refer to the lifecycle in Vue.js for more details, mentioned at the very top of this file.
     async created() {
-        const rawData = await d3.csv("../../data/palm-2.csv");
-
-        // URL of your Flask server
-        const serverUrl = 'http://localhost:8000/endpoint';
-
-        // Input string for the GET request
-        const inputString = 'Hello, Flask!';
-        // Make a GET request using Axios
-        await axios.get(serverUrl, {
-            params: {
-                input_string: inputString
-            }
-        })
-        .then(response => {
-            // Handle the response from the server
-            console.log(response.data);
-        })
-        .catch(error => {
-            // Handle any errors that occurred during the request
-            console.error('Error:', error);
-        });
+        // const rawData = await d3.csv("../../data/proc/palm-2.csv");
         
-        this.bars = Data.data;
+        this.updateChart();
     },
     methods: {
+        async updateChart() {
+            // remove all the elements in the chart
+            d3.select('#bar-svg').selectAll('*').remove()
+
+            const selectedPoint = state.selections;
+            const content = selectedPoint.get("content");
+
+            const serverUrl = 'http://localhost:8000/endpoint';
+
+            // Input string for the GET request
+            // Make a GET request using Axios
+            await axios.get(serverUrl, {
+                params: {
+                    input_string: content
+                }
+            })
+            .then(response => {
+                // Handle the response from the server
+                this.bars = response.data as SentimentCategory[];
+                this.$nextTick(this.initChart);
+            })
+            .catch(error => {
+                // Handle any errors that occurred during the request
+                console.error('Error:', error);
+            });
+        
+        },
         onResize() {  // record the updated size of the target element
             let target = this.$refs.barContainer as HTMLElement
             if (target === undefined) return;
@@ -64,11 +77,13 @@ export default {
         initChart() {
             // select the svg tag so that we can insert(render) elements, i.e., draw the chart, within it.
             let chartContainer = d3.select('#bar-svg')
+            // Here we compute the [min, max] from the data values of the attributes that will be used to represent x- and y-axis
+            let yExtents = d3.extent(this.bars.map((d: SentimentCategory) => d.value)) as [number, number];
 
-            // Here we compute the [min, max] from the data values of the attributes that will be used to represent x- and y-axis.
-            let yExtents = d3.extent(this.bars.map((d: CategoricalBar) => d.value as number)) as [number, number]
+            // let yExtents = d3.extent(this.bars.map((d: SentimentCategory) => d.value as number)) as [number, number]
             // This is to get the unique categories from the data using Set, then store in an array.
-            let xCategories: string[] = [ ...new Set(this.bars.map((d: CategoricalBar) => d.category as string))]
+            // let xCategories: string[] = [ ...new Set(Object.keys(this.bars).map((d: SentimentCategory) => d.category as string))]
+            let xCategories: string[] = [ ...new Set(this.bars.map((d: SentimentCategory) => d.category as string))]
 
             // We need a way to map our data to where it should be rendered within the svg (in screen pixels), based on the data value, 
             //      so the extents and the unique values above help us define the limits.
@@ -116,14 +131,14 @@ export default {
             // We iterate through each <CategoricalBar> element in the array, create a rectangle for each and indicate the coordinates, the rectangle, and the color.
             const bars = chartContainer.append('g')
                 .selectAll('rect')
-                .data<CategoricalBar>(this.bars) // TypeScript expression. This always expects an array of objects.
+                .data<SentimentCategory>(this.bars) // TypeScript expression. This always expects an array of objects.
                 .join('rect')
                 // specify the left-top coordinate of the rectangle
-                .attr('x', (d: CategoricalBar) => xScale(d.category) as number)
-                .attr('y', (d: CategoricalBar) => yScale(d.value) as number)
+                .attr('x', (d: SentimentCategory) => xScale(d.category) as number)
+                .attr('y', (d: SentimentCategory) => yScale(d.value) as number)
                 // specify the size of the rectangle
                 .attr('width', xScale.bandwidth())
-                .attr('height', (d: CategoricalBar) => Math.abs(yScale(0) - yScale(d.value))) // this substraction is reversed so the result is non-negative
+                .attr('height', (d: SentimentCategory) => Math.abs(yScale(0) - yScale(d.value))) // this substraction is reversed so the result is non-negative
                 .attr('fill', 'teal')
 
             // For transform, check out https://www.tutorialspoint.com/d3js/d3js_svg_transformation.htm, but essentially we are adjusting the positions of the selected elements.
@@ -133,7 +148,7 @@ export default {
                 .attr('dy', '0.5rem') // relative distance from the indicated coordinates.
                 .style('text-anchor', 'middle')
                 .style('font-weight', 'bold')
-                .text('Distribution of Demo Data') // text content
+                .text('Sentiment Analysis of the message') // text content
         }
     },
     watch: {
@@ -146,10 +161,12 @@ export default {
     },
     // The following are general setup for resize events.
     mounted() {
+        emitter.$on('update-chart', this.updateChart);
         window.addEventListener('resize', debounce(this.onResize, 100)) 
         this.onResize()
     },
     beforeDestroy() {
+       emitter.$off('update-chart', this.updateChart);
        window.removeEventListener('resize', this.onResize)
     }
 }
@@ -171,4 +188,3 @@ export default {
     height: 100%;
 }
 </style>
-

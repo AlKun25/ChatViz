@@ -7,10 +7,11 @@
 
 <script lang="ts">
 import * as d3 from "d3";
-import axios from 'axios';
 import { isEmpty, debounce } from 'lodash';
 import { ComponentSize, Margin } from '../types';
-import { schemeCategory10 } from 'd3-scale-chromatic';
+import { useEventEmitter } from '../emitter';
+import { state } from '../state';
+const emitter = useEventEmitter();
 
 interface Toxicity {
     hate: number,
@@ -41,19 +42,28 @@ export default {
         },
     },
     async created() {
-        const rawData = await d3.csv("../../data/proc/palm-2.csv");
-        let parsedData = rawData.map(d => ({
-            message_id: d.message_id,
-            openai_moderation: d.openai_moderation,
-        }));
-        // console.log(rawData[0]["openai_moderation"]);
-        // const example = "{'categories': {'harassment': False, 'harassment/threatening': False, 'hate': False, 'hate/threatening': False, 'self-harm': False, 'self-harm/instructions': False, 'self-harm/intent': False, 'sexual': False, 'sexual/minors': False, 'violence': False, 'violence/graphic': False}, 'category_scores': {'harassment': 4.2268514e-08, 'harassment/threatening': 1.968493e-09, 'hate': 1.574229e-08, 'hate/threatening': 9.697849e-11, 'self-harm': 4.6034412e-11, 'self-harm/instructions': 8.869029e-12, 'self-harm/intent': 8.679583e-13, 'sexual': 4.3375917e-07, 'sexual/minors': 5.3620926e-07, 'violence': 2.966025e-06, 'violence/graphic': 1.4624901e-06}, 'flagged': False}";
-        this.preprocessData = parsedData.filter((d) => d.message_id == "1e7844b921d44b798f59deb92b7d41da_9")[0];
-        let processData = this.preprocess((this.preprocessData.openai_moderation).toString());
-        console.log(processData)
-        this.chartData = processData;
+        // const rawData = await d3.csv("../../data/proc/palm-2.csv");
+        this.updateChart();
     },
     methods: {
+        async updateChart() {
+            // d3.select('#radar-svg').selectAll('*').remove();
+            const selectedPoint = state.selections;
+            const moderation = selectedPoint.get("openai_moderation");
+            console.log("moderation: ", moderation);
+            /*
+            let parsedData = rawData.map(d => ({
+                message_id: d.message_id,
+                openai_moderation: d.openai_moderation,
+            }));
+            // console.log(rawData[0]["openai_moderation"]);
+            // const example = "{'categories': {'harassment': False, 'harassment/threatening': False, 'hate': False, 'hate/threatening': False, 'self-harm': False, 'self-harm/instructions': False, 'self-harm/intent': False, 'sexual': False, 'sexual/minors': False, 'violence': False, 'violence/graphic': False}, 'category_scores': {'harassment': 4.2268514e-08, 'harassment/threatening': 1.968493e-09, 'hate': 1.574229e-08, 'hate/threatening': 9.697849e-11, 'self-harm': 4.6034412e-11, 'self-harm/instructions': 8.869029e-12, 'self-harm/intent': 8.679583e-13, 'sexual': 4.3375917e-07, 'sexual/minors': 5.3620926e-07, 'violence': 2.966025e-06, 'violence/graphic': 1.4624901e-06}, 'flagged': False}";
+            this.preprocessData = parsedData.filter((d) => d.message_id == "1e7844b921d44b798f59deb92b7d41da_9")[0];
+            */
+            let processData = this.preprocess(moderation);
+            console.log("processData: ", processData);
+            this.chartData = processData;
+        },
         onResize() {
             let target = this.$refs.radarContainer as HTMLElement;
             if (target === undefined) return;
@@ -111,12 +121,12 @@ export default {
         },
         initChart() {
             const data = {"palm2":this.chartData};
-            d3.select('#radar-svg').selectAll('*').remove()
             let svgWidth = this.size.width;
             let svgHeight = this.size.height;
-            let svg = d3.select("#radar-svg")
-                .attr("width", svgWidth)
-                .attr("height", svgHeight);
+            let svg = d3.select("#radar-svg");
+            svg.selectAll("*").remove();
+            //svg.attr("width", svgWidth)
+            //    .attr("height", svgHeight);
 
             let centerX = svgWidth / 2 - 75;
             let centerY = svgHeight / 2;
@@ -304,10 +314,10 @@ export default {
                 .attr("fill", "black");
 
             svg.append("text")
-                .attr("x", svgWidth / 2)
-                .attr("y", 30)
+                .attr("x", svgWidth / 2 -20)
+                .attr("y", 220)
                 .attr("text-anchor", "middle")
-                .attr("font-size", "24px")
+                .attr("font-size", "12px")
                 .attr("font-weight", "bold")
                 .text("Message Toxicity");
 
@@ -324,10 +334,12 @@ export default {
         },
     },
     mounted() {
+        emitter.$on('update-chart', this.updateChart);
         window.addEventListener('resize', debounce(this.onResize, 100))
         this.onResize()
     },
     beforeDestroy() {
+        emitter.$off('update-chart', this.updateChart);
         window.removeEventListener('resize', this.onResize)
     }
 };
