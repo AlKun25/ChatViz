@@ -32,11 +32,26 @@ export default {
     // Refer to the lifecycle in Vue.js for more details, mentioned at the very top of this file.
     async created() {
         const rawData = await d3.csv("../../data/palm-2.csv");
-        let parsedData = rawData.map(d => ({
-            message_id: d.message_id,
-            sentiment: d.sentiment,
-        }));
-        console.log(rawData[0]);
+
+        // URL of your Flask server
+        const serverUrl = 'http://localhost:8000/endpoint';
+
+        // Input string for the GET request
+        const inputString = 'Hello, Flask!';
+        // Make a GET request using Axios
+        await axios.get(serverUrl, {
+            params: {
+                input_string: inputString
+            }
+        })
+        .then(response => {
+            // Handle the response from the server
+            console.log(response.data);
+        })
+        .catch(error => {
+            // Handle any errors that occurred during the request
+            console.error('Error:', error);
+        });
         
         this.bars = Data.data;
     },

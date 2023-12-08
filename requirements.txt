@@ -7,3 +7,4 @@ transformers
 scikit-learn
 openai
 tiktoken
+flask
