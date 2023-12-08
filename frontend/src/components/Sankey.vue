@@ -7,7 +7,7 @@
 
 <script lang="ts">
 import * as d3 from 'd3';
-import { sankey as d3Sankey, sankeyLinkHorizontal as d3SsankeyLinkHorizontal } from 'd3-sankey';
+import { sankey as d3Sankey, sankeyLinkHorizontal as d3SankeyLinkHorizontal } from 'd3-sankey';
 import axios from 'axios';
 import { isEmpty, debounce } from 'lodash';
 import { ComponentSize, Margin } from '../types';
@@ -15,7 +15,7 @@ import { ComponentSize, Margin } from '../types';
 interface DataDistrib {
   model: string;
   role: string;
-  toxicity: string | boolean;
+  toxicity: string;
   cluster: number;
   turn: number;
   value: number;
@@ -56,25 +56,25 @@ export default {
     const parsedSet = d3.rollup(
       rawData,
       (v) => v.length,
-      (d) => d.model,
+      // (d) => d.model,
       (d) => d.role, // can there be more toxic messages from one-specific role?
-      (d) => d.toxicity,
-      (d) => d.cluster,
-      (d) => d.turn
+      (d) => (d.toxicity).toString() == "True"? "Toxic" : "Non-Toxic",
+      (d) => "Cluster_" + (d.cluster).toString(),
+      // (d) => "Turn " + (d.turn).toString()
     );
     const parsedData = this.unroll(
       parsedSet,
-      ["model", "role", "toxicity", "cluster", "turn"],
+      ["role", "toxicity", "cluster"],
       "value"
     );
     this.create_sankey_data(parsedData, Object.keys(parsedData[0]));
   },
   methods: {
-    onResize() {  
-            let target = this.$refs.sankeyContainer as HTMLElement;
-            if (target === undefined) return;
-            this.size = { width: target.clientWidth, height: target.clientHeight };
-        },
+    onResize() {
+      let target = this.$refs.sankeyContainer as HTMLElement;
+      if (target === undefined) return;
+      this.size = { width: target.clientWidth, height: target.clientHeight };
+    },
     unroll(rollup: d3.InternMap, keys: string | any[], label = "value", p = {}): Array<any> {
       return Array.from(rollup, ([key, value]) =>
         value instanceof Map
@@ -142,7 +142,69 @@ export default {
       const width = this.size.width;
       const height = this.size.height;
 
-      // let sankey = d3Sankey.nodeSort;
+      const sankey = d3Sankey()
+        .nodeSort(null)
+        .linkSort(null)
+        .nodeWidth(4)
+        .nodePadding(20)
+        .extent([[0, 5], [width, height - 5]])
+
+      const color = d3.scaleOrdinal(["user","assistant"], ["#1f77b4", "#ff7f0e"]).unknown("#ccc");
+      const svg = d3.select("#sankey-svg")
+        .attr("viewBox", [0, 0, width, height])
+        .attr("width", width)
+        .attr("height", height)
+        .attr("style", "max-width: 100%; height: auto;");
+
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height - 20)
+        .attr("fill", "currentColor")
+        .attr("font-size", "18px")
+        .attr("text-anchor", "middle")
+        .text("Data distribution");
+
+      const { nodes, links } = sankey({
+        nodes: this.sankeyData.nodes.map(d => Object.create(d)),
+        links: this.sankeyData.links.map(d => Object.create(d))
+      });
+
+      svg.append("g")
+        .selectAll("rect")
+        .data(nodes)
+        .join("rect")
+        .attr("x", d => d.x0)
+        .attr("y", d => d.y0)
+        .attr("height", d => d.y1 - d.y0)
+        .attr("width", d => d.x1 - d.x0)
+        .append("title")
+        .text(d => `${d.name}\n${d.value.toLocaleString()}`);
+
+      svg.append("g")
+        .attr("fill", "none")
+        .selectAll("g")
+        .data(links)
+        .join("path")
+        .attr("d", d3SankeyLinkHorizontal())
+        .attr("stroke", d => color(d.names[0]))
+        .attr("stroke-width", d => d.width)
+        .style("mix-blend-mode", "multiply")
+        .append("title")
+        .text(d => `${d.names.join(" → ")}\n${d.value.toLocaleString()}`);
+
+      svg.append("g")
+        .style("font", "10px sans-serif")
+        .selectAll("text")
+        .data(nodes)
+        .join("text")
+        .attr("x", d => d.x0 < width / 2 ? d.x1 + 6 : d.x0 - 6)
+        .attr("y", d => (d.y1 + d.y0) / 2)
+        .attr("dy", "0.35em")
+        .attr("text-anchor", d => d.x0 < width / 2 ? "start" : "end")
+        .text(d => d.name)
+        .append("tspan")
+        .attr("fill-opacity", 0.7)
+        .text(d => ` ${d.value}`);
     }
   },
   mounted() {
@@ -162,3 +224,9 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.chart-container-sankey {
+    height: 100%;
+}
+</style>
