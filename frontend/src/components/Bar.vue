@@ -43,9 +43,6 @@ export default {
     },
     methods: {
         async updateChart() {
-            // remove all the elements in the chart
-            d3.select('#bar-svg').selectAll('*').remove()
-
             const selectedPoint = state.selections;
             const content = selectedPoint.get("content");
 
@@ -61,7 +58,7 @@ export default {
             .then(response => {
                 // Handle the response from the server
                 this.bars = response.data as SentimentCategory[];
-                this.$nextTick(this.initChart);
+                this.initChart();
             })
             .catch(error => {
                 // Handle any errors that occurred during the request
@@ -75,6 +72,8 @@ export default {
             this.size = { width: target.clientWidth, height: target.clientHeight };
         },
         initChart() {
+            // remove all the elements in the chart
+            d3.select('#bar-svg').selectAll('*').remove()
             // select the svg tag so that we can insert(render) elements, i.e., draw the chart, within it.
             let chartContainer = d3.select('#bar-svg')
             // Here we compute the [min, max] from the data values of the attributes that will be used to represent x- and y-axis
