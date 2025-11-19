@@ -1,5 +1,5 @@
 # ChatViz
-### Team: Jim | Ty Feng
+### Team: Kunal Mundada | Ty Feng
 
 ## Dev Setup
 
